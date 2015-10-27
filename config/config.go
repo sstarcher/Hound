@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -23,14 +24,20 @@ type UrlPattern struct {
 }
 
 type Repo struct {
-	Url               string         `json:"url"`
-	MsBetweenPolls    int            `json:"ms-between-poll"`
-	Vcs               string         `json:"vcs"`
-	VcsConfigMessage  *SecretMessage `json:"vcs-config"`
-	UrlPattern        *UrlPattern    `json:"url-pattern"`
-	ExcludeDotFiles   bool           `json:"exclude-dot-files"`
-	EnablePollUpdates *bool          `json:"enable-poll-updates"`
-	EnablePushUpdates *bool          `json:"enable-push-updates"`
+	Url               string         `json:"url,omitempty"`
+	MsBetweenPolls    int            `json:"ms-between-poll,omitempty"`
+	Vcs               string         `json:"vcs,omitempty"`
+	VcsConfigMessage  *SecretMessage `json:"vcs-config,omitempty"`
+	UrlPattern        *UrlPattern    `json:"url-pattern,omitempty"`
+	ExcludeDotFiles   bool           `json:"exclude-dot-files,omitempty"`
+	EnablePollUpdates *bool          `json:"enable-poll-updates,omitempty"`
+	EnablePushUpdates *bool          `json:"enable-push-updates,omitempty"`
+}
+
+type Organization struct {
+	Type    string `json:"type"`
+	Token   string `json:"token,omitempty"`
+	Exclude string `json:"exclude,omitempty"`
 }
 
 // Used for interpreting the config value for fields that use *bool. If a value
@@ -53,9 +60,10 @@ func (r *Repo) PushUpdatesEnabled() bool {
 }
 
 type Config struct {
-	DbPath                string           `json:"dbpath"`
-	Repos                 map[string]*Repo `json:"repos"`
-	MaxConcurrentIndexers int              `json:"max-concurrent-indexers"`
+	DbPath                string                   `json:"dbpath"`
+	Repos                 map[string]*Repo         `json:"repos"`
+	MaxConcurrentIndexers int                      `json:"max-concurrent-indexers"`
+	Organizations         map[string]*Organization `json:"organizations"`
 }
 
 // SecretMessage is just like json.RawMessage but it will not
@@ -117,6 +125,10 @@ func initConfig(c *Config) {
 	if c.MaxConcurrentIndexers == 0 {
 		c.MaxConcurrentIndexers = defaultMaxConcurrentIndexers
 	}
+
+	if c.Repos == nil {
+		c.Repos = make(map[string]*Repo)
+	}
 }
 
 func (c *Config) LoadFromFile(filename string) error {
@@ -139,11 +151,28 @@ func (c *Config) LoadFromFile(filename string) error {
 		c.DbPath = path
 	}
 
+	initConfig(c)
+
+	for name, org := range c.Organizations {
+		var repos map[string]*Repo
+		log.Print(name)
+		switch org.Type {
+		case "github":
+			repos = GenerateGithub(name, org.Token, org.Exclude)
+		case "bitbucket":
+			repos = GenerateBitbucket(name, org.Token, org.Exclude)
+		default:
+			panic("Not implemented organization type")
+		}
+
+		for k, v := range repos {
+			c.Repos[k] = v
+		}
+	}
+
 	for _, repo := range c.Repos {
 		initRepo(repo)
 	}
-
-	initConfig(c)
 
 	return nil
 }

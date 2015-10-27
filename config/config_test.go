@@ -35,3 +35,22 @@ func TestExampleConfigsAreValid(t *testing.T) {
 		}
 	}
 }
+
+func TestExampleOrgConfigIsValid(t *testing.T) {
+	var cfg Config
+	if err := cfg.LoadFromFile(filepath.Join(rootDir(), "config-organization-example.json")); err != nil {
+		t.Fatalf("Unable to parse %s: %s", "config-organization-example.json", err)
+	}
+
+	if len(cfg.Repos) == 0 {
+		t.Fatal("config has no repos")
+	}
+
+	// Ensure that each of the declared vcs's are legit
+	for _, repo := range cfg.Repos {
+		_, err := vcs.New(repo.Vcs, repo.VcsConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
