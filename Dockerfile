@@ -1,8 +1,9 @@
-FROM golang
+FROM gliderlabs/alpine
 
-COPY . /go/src/github.com/etsy/hound
+RUN apk-install ca-certificates git openssh
+
+ADD hound /go/bin/houndd
 ONBUILD COPY config.json /hound/
-RUN go-wrapper install github.com/etsy/hound/cmds/houndd
 
 EXPOSE 6080
 
