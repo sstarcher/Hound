@@ -14,9 +14,10 @@ const (
 	defaultPushEnabled           = false
 	defaultPollEnabled           = true
 	defaultVcs                   = "git"
-	defaultBaseUrl               = "{url}/blob/master/{path}{anchor}"
 	defaultAnchor                = "#L{line}"
 )
+var defaultBaseUrl = "{url}/blob/master/{path}{anchor}"
+
 
 type UrlPattern struct {
 	BaseUrl string `json:"base-url"`
@@ -64,6 +65,7 @@ type Config struct {
 	Repos                 map[string]*Repo         `json:"repos"`
 	MaxConcurrentIndexers int                      `json:"max-concurrent-indexers"`
 	Organizations         map[string]*Organization `json:"organizations"`
+	DefaultURL            string                   `json:"default-url"`
 }
 
 // SecretMessage is just like json.RawMessage but it will not
@@ -124,6 +126,10 @@ func initRepo(r *Repo) {
 func initConfig(c *Config) {
 	if c.MaxConcurrentIndexers == 0 {
 		c.MaxConcurrentIndexers = defaultMaxConcurrentIndexers
+	}
+
+	if c.DefaultURL != "" {
+		defaultBaseUrl = c.DefaultURL
 	}
 
 	if c.Repos == nil {
